@@ -31,7 +31,7 @@
 #include <string.h>
 
 #ifndef CMB_LR_WORD_OFFSET
-#define CMB_LR_WORD_OFFSET   6
+#define CMB_LR_WORD_OFFSET   16
 #endif 
 
 #define CMB_SP_WORD_OFFSET   (CMB_LR_WORD_OFFSET + 1)
@@ -66,12 +66,12 @@
 #endif
 
 RT_WEAK rt_err_t exception_hook(void *context) {
-    extern long list_thread(void);
     volatile uint8_t _continue = 1;
         
     rt_enter_critical();
 
 #ifdef RT_USING_FINSH
+    extern long list_thread(void);
     list_thread();
 #endif
 
@@ -91,10 +91,32 @@ RT_WEAK rt_err_t exception_hook(void *context) {
     return RT_EOK;
 }
 
+RT_WEAK void assert_hook(const char* ex, const char* func, rt_size_t line) {
+    volatile uint8_t _continue = 1;
+
+    rt_enter_critical();
+
+#ifdef RT_USING_FINSH
+    extern long list_thread(void);
+    list_thread();
+#endif
+
+    cmb_println("");
+    cmb_println("(%s) has assert failed at %s:%ld.", ex, func, line);
+
+    cm_backtrace_assert(cmb_get_sp());
+
+    cmb_println("Current system tick: %ld", rt_tick_get());
+
+    while (_continue == 1);
+}
+
 int rt_cm_backtrace_init(void) {
     cm_backtrace_init("rtthread","1.0","1.0");
     
     rt_hw_exception_install(exception_hook);
+
+    rt_assert_set_hook(assert_hook);
     
     return 0;
 }

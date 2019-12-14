@@ -16,9 +16,10 @@
 #include <stdio.h>
 #include <cm_backtrace.h>
 
-#define CMB_USING_FLASH_LOG_BACKUP
+#define CMB_USING_FAL_FLASH_LOG
+#define CMB_USING_FAL_BACKUP_LOG_TO_FILE
 
-#if defined(CMB_USING_FLASH_LOG_BACKUP)
+#if defined(CMB_USING_FAL_FLASH_LOG)
 
 #if !defined(PKG_USING_FAL) || !defined(RT_USING_DFS)
 #error "please enable the FAL package and DFS component"
@@ -27,10 +28,19 @@
 #include <fal.h>
 #include <dfs_posix.h>
 
-#define CMB_FLASH_LOG_PART             "cmb_log"
-#define CMB_LOG_PATH                   "/log/cmb.log"
+#ifndef CMB_FAL_FLASH_LOG_PART
+#define CMB_FAL_FLASH_LOG_PART         "cmb_log"
+#endif
+
+#ifndef CMB_LOG_FILE_PATH
+#define CMB_LOG_FILE_PATH              "/log/cmb.log"
+#endif
+
 /* cmb flash log partition write granularity, default: 8 bytes */
+#ifndef CMB_FLASH_LOG_PART_WG
 #define CMB_FLASH_LOG_PART_WG          8
+#endif
+
 /* the log length's size which saved in flash */
 #define CMB_LOG_LEN_SIZE               MAX(sizeof(size_t), CMB_FLASH_LOG_PART_WG)
 
@@ -53,6 +63,13 @@ void cmb_flash_log_write(const char *log, size_t len)
 {
     static uint32_t addr = 0;
     uint8_t len_buf[CMB_LOG_LEN_SIZE] = { 0 };
+    static rt_bool_t first_write = RT_TRUE;
+
+    if (first_write)
+    {
+        fal_partition_erase_all(cmb_log_part);
+        first_write = RT_FALSE;
+    }
 
     /* write log length */
     rt_memcpy(len_buf, (uint8_t *)&len, sizeof(size_t));
@@ -78,7 +95,7 @@ int ulog_cmb_flash_log_backend_init(void)
 {
     static struct ulog_backend backend;
 
-    cmb_log_part = fal_partition_find(CMB_FLASH_LOG_PART);
+    cmb_log_part = fal_partition_find(CMB_FAL_FLASH_LOG_PART);
     RT_ASSERT(cmb_log_part != NULL);
 
     backend.init = RT_NULL;
@@ -91,12 +108,33 @@ int ulog_cmb_flash_log_backend_init(void)
 INIT_APP_EXPORT(ulog_cmb_flash_log_backend_init);
 
 #else
-/* may be using rt_kprinf? */
+void cmb_flash_log_println(const char *fmt, ...)
+{
+    va_list args;
+    rt_size_t length;
+    static char rt_log_buf[RT_CONSOLEBUF_SIZE];
+
+    va_start(args, fmt);
+
+    length = rt_vsnprintf(rt_log_buf, sizeof(rt_log_buf) - 1, fmt, args);
+    if (length > RT_CONSOLEBUF_SIZE - 1 - 2)
+        length = RT_CONSOLEBUF_SIZE - 3;
+
+    /* add CRLF */
+    rt_log_buf[length++] = '\r';
+    rt_log_buf[length++] = '\n';
+
+    cmb_flash_log_write(rt_log_buf, length);
+
+    va_end(args);
+}
 #endif /* RT_USING_ULOG */
 
+
+#ifdef CMB_USING_FAL_BACKUP_LOG_TO_FILE
 int cmb_backup_flash_log_to_file(void)
 {
-    cmb_log_part = fal_partition_find(CMB_FLASH_LOG_PART);
+    cmb_log_part = fal_partition_find(CMB_FAL_FLASH_LOG_PART);
     RT_ASSERT(cmb_log_part != NULL);
 
     size_t len;
@@ -114,11 +152,11 @@ int cmb_backup_flash_log_to_file(void)
             if (!has_read_log)
             {
                 has_read_log = RT_TRUE;
-                LOG_I("An CmBacktrace log was found on flash. Now will backup it to file ("CMB_LOG_PATH").");
+                LOG_I("An CmBacktrace log was found on flash. Now will backup it to file ("CMB_LOG_FILE_PATH").");
                 //TODO check the folder
-                log_fd = open(CMB_LOG_PATH, O_WRONLY | O_CREAT | O_APPEND);
+                log_fd = open(CMB_LOG_FILE_PATH, O_WRONLY | O_CREAT | O_APPEND);
                 if (log_fd < 0) {
-                    LOG_E("Open file ("CMB_LOG_PATH") failed.");
+                    LOG_E("Open file ("CMB_LOG_FILE_PATH") failed.");
                     break;
                 }
             }
@@ -139,14 +177,14 @@ int cmb_backup_flash_log_to_file(void)
     {
         if (log_fd >= 0)
         {
-            LOG_I("Backup the CmBacktrace flash log to file ("CMB_LOG_PATH") successful.");
+            LOG_I("Backup the CmBacktrace flash log to file ("CMB_LOG_FILE_PATH") successful.");
             close(log_fd);
         }
-        fal_partition_erase_all(cmb_log_part);
     }
 
     return 0;
 }
 INIT_APP_EXPORT(cmb_backup_flash_log_to_file);
+#endif /* CMB_USING_FAL_BACKUP_LOG_TO_FILE */
 
 #endif /* defined(CMB_USING_FLASH_LOG_BACKUP) */
