@@ -217,8 +217,8 @@
 #define FAL_PART_HAS_TABLE_CFG
 #define FAL_USING_SFUD_PORT
 #define FAL_USING_NOR_FLASH_DEV_NAME "W25Q128"
-#define PKG_USING_FAL_LATEST_VERSION
-#define PKG_FAL_VER_NUM 0x99999
+#define PKG_USING_FAL_V00400
+#define PKG_FAL_VER_NUM 0x00400
 /* end of system packages */
 
 /* peripheral libraries and drivers */
