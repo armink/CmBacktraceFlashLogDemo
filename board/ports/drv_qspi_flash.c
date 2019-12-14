@@ -81,7 +81,7 @@ INIT_COMPONENT_EXPORT(rt_hw_qspi_flash_with_sfud_init);
 
 int mnt_init(void)
 {
-    rt_thread_delay(RT_TICK_PER_SECOND);
+    rt_thread_mdelay(100);
 
     if (dfs_mount(BLK_DEV_NAME, "/", "elm", 0, 0) == 0)
     {
