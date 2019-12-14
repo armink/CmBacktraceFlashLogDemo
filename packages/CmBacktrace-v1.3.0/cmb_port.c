@@ -31,7 +31,11 @@
 #include <string.h>
 
 #ifndef CMB_LR_WORD_OFFSET
-#define CMB_LR_WORD_OFFSET   16
+#if defined(__CC_ARM) || defined(__CLANG_ARM)           /* ARM Compiler */
+#define CMB_LR_WORD_OFFSET   10
+#else
+#define CMB_LR_WORD_OFFSET   18
+#endif
 #endif 
 
 #define CMB_SP_WORD_OFFSET   (CMB_LR_WORD_OFFSET + 1)
