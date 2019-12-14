@@ -39,4 +39,4 @@ static int fal_auto_init(void)
 
     return 0;
 }
-INIT_COMPONENT_EXPORT(fal_auto_init);
+INIT_ENV_EXPORT(fal_auto_init);
