@@ -16,8 +16,8 @@
 #include <stdio.h>
 #include <cm_backtrace.h>
 
-//#define CMB_USING_FAL_FLASH_LOG
-//#define CMB_USING_FAL_BACKUP_LOG_TO_FILE
+#define CMB_USING_FAL_FLASH_LOG
+#define CMB_USING_FAL_BACKUP_LOG_TO_FILE
 
 #if defined(CMB_USING_FAL_FLASH_LOG)
 
@@ -67,10 +67,7 @@ void cmb_flash_log_write(const char *log, size_t len)
 
     if (first_write)
     {
-#ifndef CMB_USING_FAL_BACKUP_LOG_TO_FILE
         fal_partition_erase_all(cmb_log_part);
-#endif
-
         first_write = RT_FALSE;
     }
 
